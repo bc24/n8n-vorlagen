@@ -1,0 +1,59 @@
+{
+  "name": "Guten-Morgen-Nachricht an Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      },
+      "id": "a1f0c7e2-0001-4c1a-9a01-000000000001",
+      "name": "Jeden Morgen 7 Uhr",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Zufälligen Gruß auswählen und mit Wochentag + Datum ergänzen\nconst gruesse = [\n  'Guten Morgen! ☀️ Starte gut in den Tag.',\n  'Moin moin aus Bremen! ☕ Einen schönen Tag dir.',\n  'Guten Morgen! 🚀 Heute wird ein guter Tag.',\n  'Moin! 🌤️ Kaffee an, Laune hoch.',\n];\n\nconst jetzt = new Date();\nconst tag = jetzt.toLocaleDateString('de-DE', { weekday: 'long', day: '2-digit', month: 'long', timeZone: 'Europe/Berlin' });\nconst gruss = gruesse[Math.floor(Math.random() * gruesse.length)];\n\nreturn [{ json: { text: `${gruss}\\n\\nHeute ist ${tag}.` } }];"
+      },
+      "id": "a1f0c7e2-0001-4c1a-9a01-000000000002",
+      "name": "Gruß zusammenbauen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "DEINE_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "a1f0c7e2-0001-4c1a-9a01-000000000003",
+      "name": "An Telegram senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [480, 0]
+    }
+  ],
+  "connections": {
+    "Jeden Morgen 7 Uhr": {
+      "main": [[{ "node": "Gruß zusammenbauen", "type": "main", "index": 0 }]]
+    },
+    "Gruß zusammenbauen": {
+      "main": [[{ "node": "An Telegram senden", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin"
+  },
+  "pinData": {}
+}

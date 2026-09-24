@@ -1,0 +1,109 @@
+{
+  "name": "RSS-Feed an Telegram (mit Ruhezeiten)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 30
+            }
+          ]
+        }
+      },
+      "id": "b2e1d8f3-0002-4c1a-9a01-000000000001",
+      "name": "Alle 30 Minuten",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "url": "https://example.com/feed/",
+        "options": {}
+      },
+      "id": "b2e1d8f3-0002-4c1a-9a01-000000000002",
+      "name": "RSS-Feed lesen",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nur neue Einträge weitergeben und Ruhezeiten einhalten.\n// Bereits gesendete Links merkt sich der Workflow in den Static Data\n// (funktioniert nur bei aktivem Workflow, nicht bei manueller Ausführung).\nconst RUHE_VON = 22; // ab 22 Uhr nichts senden\nconst RUHE_BIS = 7;  // bis 7 Uhr nichts senden\nconst MAX_PRO_LAUF = 3;\n\nconst stunde = Number(new Date().toLocaleString('de-DE', { hour: '2-digit', hour12: false, timeZone: 'Europe/Berlin' }));\nif (stunde >= RUHE_VON || stunde < RUHE_BIS) {\n  return [];\n}\n\nconst speicher = $getWorkflowStaticData('global');\nconst gesendet = new Set(speicher.gesendet || []);\n\nconst neu = [];\nfor (const item of $input.all()) {\n  const link = item.json.link;\n  if (!link || gesendet.has(link)) continue;\n  gesendet.add(link);\n  neu.push(item);\n  if (neu.length >= MAX_PRO_LAUF) break;\n}\n// Liste begrenzen, damit die Static Data nicht endlos wächst\nspeicher.gesendet = [...gesendet].slice(-500);\n\nreturn neu.map(item => ({\n  json: { text: `📰 ${item.json.title}\\n\\n${item.json.link}` },\n}));"
+      },
+      "id": "b2e1d8f3-0002-4c1a-9a01-000000000003",
+      "name": "Neue Einträge + Ruhezeit",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "DEINE_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "b2e1d8f3-0002-4c1a-9a01-000000000004",
+      "name": "An Telegram senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        720,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Alle 30 Minuten": {
+      "main": [
+        [
+          {
+            "node": "RSS-Feed lesen",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS-Feed lesen": {
+      "main": [
+        [
+          {
+            "node": "Neue Einträge + Ruhezeit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Neue Einträge + Ruhezeit": {
+      "main": [
+        [
+          {
+            "node": "An Telegram senden",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin"
+  },
+  "pinData": {}
+}

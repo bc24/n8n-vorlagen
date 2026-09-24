@@ -1,0 +1,121 @@
+{
+  "name": "Kontaktformular der Website an Telegram",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "kontaktformular",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000001",
+      "name": "Webhook Kontaktformular",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "c3f2e9a4-0003-4c1a-9a01-00000000000a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Formulardaten prüfen und als Telegram-Nachricht aufbereiten.\n// Erwartete Felder: name, email, nachricht (JSON oder Formular-POST).\nconst body = $input.first().json.body || {};\nconst sauber = (wert, max) => String(wert || '').trim().slice(0, max);\n\nconst name = sauber(body.name, 100);\nconst email = sauber(body.email, 200);\nconst nachricht = sauber(body.nachricht, 2000);\nconst honeypot = sauber(body.website, 200); // verstecktes Feld gegen Spam-Bots\n\nconst gueltig = name !== '' && nachricht !== '' && /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email) && honeypot === '';\n\nreturn [{\n  json: {\n    gueltig,\n    text: `📬 Neue Anfrage über die Website\\n\\n👤 ${name}\\n✉️ ${email}\\n\\n${nachricht}`,\n  },\n}];"
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000002",
+      "name": "Prüfen + aufbereiten",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [240, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "c3f2e9a4-0003-4c1a-9a01-0000000000c1",
+              "leftValue": "={{ $json.gueltig }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000003",
+      "name": "Gültig?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [480, 0]
+    },
+    {
+      "parameters": {
+        "chatId": "DEINE_CHAT_ID",
+        "text": "={{ $json.text }}",
+        "additionalFields": {
+          "appendAttribution": false
+        }
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000004",
+      "name": "An Telegram senden",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [720, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": true } }}",
+        "options": {}
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000005",
+      "name": "Antwort OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [960, -100]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"ok\": false, \"fehler\": \"Bitte Name, gültige E-Mail und Nachricht angeben.\" } }}",
+        "options": {
+          "responseCode": 422
+        }
+      },
+      "id": "c3f2e9a4-0003-4c1a-9a01-000000000006",
+      "name": "Antwort Fehler",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [720, 100]
+    }
+  ],
+  "connections": {
+    "Webhook Kontaktformular": {
+      "main": [[{ "node": "Prüfen + aufbereiten", "type": "main", "index": 0 }]]
+    },
+    "Prüfen + aufbereiten": {
+      "main": [[{ "node": "Gültig?", "type": "main", "index": 0 }]]
+    },
+    "Gültig?": {
+      "main": [
+        [{ "node": "An Telegram senden", "type": "main", "index": 0 }],
+        [{ "node": "Antwort Fehler", "type": "main", "index": 0 }]
+      ]
+    },
+    "An Telegram senden": {
+      "main": [[{ "node": "Antwort OK", "type": "main", "index": 0 }]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "Europe/Berlin"
+  },
+  "pinData": {}
+}
